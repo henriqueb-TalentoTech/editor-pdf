@@ -1,0 +1,3 @@
+Para rodar o edior local usar o comando abaixo:
+
+uv run streamlit run app.py
