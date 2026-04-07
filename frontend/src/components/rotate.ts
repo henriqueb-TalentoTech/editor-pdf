@@ -33,14 +33,12 @@ export function RotateView(): HTMLElement {
   header.innerHTML = `
     <div class="tool-header-title"><h2>\ud83d\udd04 Rotacionar</h2></div>
     <p>Gire as p\u00e1ginas do seu PDF</p>
+    <button class="finish-btn finish-btn-inline">Terminar</button>
   `
   container.appendChild(header)
 
-  const finishBtn = document.createElement('button')
-  finishBtn.className = 'finish-btn'
-  finishBtn.textContent = 'Terminar'
-  finishBtn.style.display = 'none'
-  container.appendChild(finishBtn)
+  const finishBtn = header.querySelector('.finish-btn-inline') as HTMLButtonElement
+  finishBtn.disabled = true
 
   const dz = DropZone({ accept: '.pdf' })
   container.appendChild(dz)
@@ -122,7 +120,6 @@ export function RotateView(): HTMLElement {
     const canvasEl = document.createElement('canvas')
     canvasEl.style.width = '100%'
     canvasEl.style.display = 'block'
-    canvasEl.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
     canvasElements.push(canvasEl)
     thumb.appendChild(canvasEl)
     card.appendChild(thumb)
@@ -145,30 +142,26 @@ export function RotateView(): HTMLElement {
     </svg>`
     actions.appendChild(zoomBtn)
 
-    card.appendChild(actions)
-
-    // Rotate button in footer
-    const footer = document.createElement('div')
-    footer.className = 'page-card-footer'
-
+    // Rotate button
     const rotBtn = document.createElement('button')
-    rotBtn.className = 'btn btn-secondary'
-    rotBtn.style.fontSize = '12px'
-    rotBtn.style.padding = '5px 12px'
-    rotBtn.textContent = '\ud83d\udd04 Girar'
-    rotBtn.addEventListener('click', () => {
+    rotBtn.className = 'page-icon-btn zoom'
+    rotBtn.title = 'Rodar 90°'
+    rotBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+    </svg>`
+    rotBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
       angles[idx] = (angles[idx] + 90) % 360
       if (angles[idx] === 0) {
         canvasEl.style.transform = ''
-        rotBtn.textContent = '\ud83d\udd04 Girar'
       } else {
         canvasEl.style.transform = `rotate(${angles[idx]}deg)`
-        rotBtn.textContent = `\ud83d\udd04 ${angles[idx]}\u00b0`
       }
       updateFinish()
     })
-    footer.appendChild(rotBtn)
-    card.appendChild(footer)
+    actions.appendChild(rotBtn)
+
+    card.appendChild(actions)
 
     // Zoom
     zoomBtn.addEventListener('click', (e) => {
@@ -233,12 +226,12 @@ export function RotateView(): HTMLElement {
 
   function updateFinish() {
     const hasRotations = angles.some(a => a !== 0)
-    finishBtn.style.display = hasRotations ? 'inline-flex' : 'none'
+    finishBtn.disabled = !hasRotations
   }
 
   // Finish flow
   finishBtn.addEventListener('click', () => {
-    if (!pdfData || !angles.some(a => a !== 0)) return
+    if (!pdfData || finishBtn.disabled) return
     header.style.display = 'none'
     pageGrid.style.display = 'none'
     dz.style.display = 'none'
@@ -252,7 +245,7 @@ export function RotateView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = ''
     dz.style.display = 'none'
-    finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
   })
 
   confirmBtn.addEventListener('click', doDownload)
@@ -289,7 +282,8 @@ export function RotateView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = ''
     dz.style.display = 'none'
-    finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    updateFinish()
   }
 
   return container

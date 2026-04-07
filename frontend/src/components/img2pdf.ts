@@ -12,14 +12,12 @@ export function Img2PdfView(): HTMLElement {
   header.innerHTML = `
     <div class="tool-header-title"><h2>\ud83d\uddbc\ufe0f Imagens para PDF</h2></div>
     <p>Converta suas imagens para um arquivo PDF</p>
+    <button class="finish-btn finish-btn-inline">Terminar</button>
   `
   container.appendChild(header)
 
-  const finishBtn = document.createElement('button')
-  finishBtn.className = 'finish-btn'
-  finishBtn.textContent = 'Terminar'
-  finishBtn.style.display = 'none'
-  container.appendChild(finishBtn)
+  const finishBtn = header.querySelector('.finish-btn-inline') as HTMLButtonElement
+  finishBtn.disabled = true
 
   const dz = MultiDropZone({ accept: '.png,.jpg,.jpeg' })
   container.appendChild(dz)
@@ -100,11 +98,11 @@ export function Img2PdfView(): HTMLElement {
       addCard.addEventListener('click', () => addInput.click())
       grid.appendChild(addCard)
 
-      finishBtn.style.display = 'inline-flex'
+      finishBtn.disabled = false
     } else {
       pageGrid.style.display = 'none'
       dz.style.display = ''
-      finishBtn.style.display = 'none'
+      finishBtn.disabled = true
     }
   }
 
@@ -201,7 +199,7 @@ export function Img2PdfView(): HTMLElement {
 
   // Finish flow
   finishBtn.addEventListener('click', () => {
-    if (files.length === 0) return
+    if (files.length === 0 || finishBtn.disabled) return
     header.style.display = 'none'
     pageGrid.style.display = 'none'
     dz.style.display = 'none'
@@ -215,7 +213,8 @@ export function Img2PdfView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = files.length > 0 ? '' : 'none'
     dz.style.display = files.length === 0 ? '' : 'none'
-    if (files.length > 0) finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    finishBtn.disabled = files.length === 0
   })
 
   confirmBtn.addEventListener('click', doDownload)
@@ -256,7 +255,8 @@ export function Img2PdfView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = files.length > 0 ? '' : 'none'
     dz.style.display = files.length === 0 ? '' : 'none'
-    if (files.length > 0) finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    finishBtn.disabled = files.length === 0
   }
 
   return container

@@ -40,14 +40,12 @@ export function MergeView(): HTMLElement {
   header.innerHTML = `
     <div class="tool-header-title"><h2>\ud83d\udd17 Juntar PDFs</h2></div>
     <p>Una v\u00e1rios PDFs em um \u00fanico arquivo</p>
+    <button class="finish-btn finish-btn-inline">Terminar</button>
   `
   container.appendChild(header)
 
-  const finishBtn = document.createElement('button')
-  finishBtn.className = 'finish-btn'
-  finishBtn.textContent = 'Terminar'
-  finishBtn.style.display = 'none'
-  container.appendChild(finishBtn)
+  const finishBtn = header.querySelector('.finish-btn-inline') as HTMLButtonElement
+  finishBtn.disabled = true
 
   const dz = MultiDropZone({ accept: '.pdf' })
   container.appendChild(dz)
@@ -131,7 +129,7 @@ export function MergeView(): HTMLElement {
     if (pages.length === 0) {
       pageGrid.style.display = 'none'
       dz.style.display = ''
-      finishBtn.style.display = 'none'
+      finishBtn.disabled = true
       return
     }
 
@@ -154,7 +152,7 @@ export function MergeView(): HTMLElement {
     addCard.addEventListener('click', () => addInput.click())
     grid.appendChild(addCard)
 
-    finishBtn.style.display = 'inline-flex'
+    finishBtn.disabled = false
   }
 
   function createPageCard(idx: number, grid: HTMLElement) {
@@ -324,7 +322,7 @@ export function MergeView(): HTMLElement {
 
   // Finish flow
   finishBtn.addEventListener('click', () => {
-    if (pages.length === 0) return
+    if (pages.length === 0 || finishBtn.disabled) return
     header.style.display = 'none'
     pageGrid.style.display = 'none'
     dz.style.display = 'none'
@@ -339,7 +337,8 @@ export function MergeView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = pages.length > 0 ? '' : 'none'
     dz.style.display = pages.length === 0 ? '' : 'none'
-    if (pages.length > 0) finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    finishBtn.disabled = pages.length === 0
   })
 
   confirmBtn.addEventListener('click', doDownload)
@@ -381,7 +380,8 @@ export function MergeView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = pages.length > 0 ? '' : 'none'
     dz.style.display = pages.length === 0 ? '' : 'none'
-    if (pages.length > 0) finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    finishBtn.disabled = pages.length === 0
   }
 
   return container

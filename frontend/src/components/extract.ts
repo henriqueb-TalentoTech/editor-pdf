@@ -33,14 +33,12 @@ export function ExtractView(): HTMLElement {
   header.innerHTML = `
     <div class="tool-header-title"><h2>\u2702\ufe0f Extrair P\u00e1ginas</h2></div>
     <p>Selecione as p\u00e1ginas que deseja extrair</p>
+    <button class="finish-btn finish-btn-inline">Terminar</button>
   `
   container.appendChild(header)
 
-  const finishBtn = document.createElement('button')
-  finishBtn.className = 'finish-btn'
-  finishBtn.textContent = 'Terminar'
-  finishBtn.style.display = 'none'
-  container.appendChild(finishBtn)
+  const finishBtn = header.querySelector('.finish-btn-inline') as HTMLButtonElement
+  finishBtn.disabled = true
 
   const dz = DropZone({ accept: '.pdf' })
   container.appendChild(dz)
@@ -69,7 +67,6 @@ export function ExtractView(): HTMLElement {
   const confirmBtn = renameSection.querySelector('.confirm-rename') as HTMLButtonElement
 
   let srcBytes: Uint8Array | null = null
-  let uploadedFile: File | null = null
   let selected = new Set<number>()
 
   dz.addEventListener('file-selected', ((e: Event) => {
@@ -81,7 +78,6 @@ export function ExtractView(): HTMLElement {
   })
 
   async function loadPdf(file: File) {
-    uploadedFile = file
     selected = new Set()
     hideDropZone(dz)
     pageGrid.style.display = ''
@@ -227,12 +223,12 @@ export function ExtractView(): HTMLElement {
   }
 
   function updateFinish() {
-    finishBtn.style.display = selected.size > 0 ? 'inline-flex' : 'none'
+    finishBtn.disabled = selected.size === 0
   }
 
   // Finish flow
   finishBtn.addEventListener('click', () => {
-    if (selected.size === 0) return
+    if (selected.size === 0 || finishBtn.disabled) return
     header.style.display = 'none'
     pageGrid.style.display = 'none'
     dz.style.display = 'none'
@@ -246,7 +242,8 @@ export function ExtractView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = ''
     dz.style.display = 'none'
-    if (uploadedFile) finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    updateFinish()
   })
 
   confirmBtn.addEventListener('click', doDownload)
@@ -279,7 +276,8 @@ export function ExtractView(): HTMLElement {
     header.style.display = ''
     pageGrid.style.display = ''
     dz.style.display = 'none'
-    if (uploadedFile) finishBtn.style.display = 'inline-flex'
+    finishBtn.style.display = ''
+    updateFinish()
   }
 
   return container

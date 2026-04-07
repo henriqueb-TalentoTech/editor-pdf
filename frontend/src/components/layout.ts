@@ -17,6 +17,7 @@ function renderSidebar(activeTool: string | null, onToolClick: (toolId: string) 
       <span class="sidebar-brand-title">PDF Tools</span>
     </div>
   `
+  header.querySelector('.sidebar-brand')!.addEventListener('click', () => onToolClick('/home'))
   sidebar.appendChild(header)
 
   const nav = document.createElement('nav')

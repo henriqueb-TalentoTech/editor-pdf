@@ -212,42 +212,6 @@
   line-height: 1.5;
 }
 
-/* ── Tool header ───────────────────────────────────────── */
-.tool-header {
-  text-align: center;
-  padding: 1rem 0 1rem;
-}
-.tool-header-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-.tool-header-title h2 {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: -0.3px;
-}
-.tool-header-title .back-arrow {
-  cursor: pointer;
-  font-size: 20px;
-  color: var(--text-muted);
-  transition: color 0.15s;
-  background: none;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 8px;
-}
-.tool-header-title .back-arrow:hover {
-  color: var(--primary);
-}
-.tool-header p {
-  color: var(--text-muted);
-  font-size: 15px;
-  margin-top: 4px;
-}
-
 .upload-actions {
   margin-top: 1.25rem;
   display: flex;
@@ -327,19 +291,59 @@
   line-height: 1;
 }
 
-/* ── Header with "Terminar" button ── */
+/* ── Tool headers ────────────────────────────────────── */
+.tool-header {
+  text-align: left;
+  padding: 1rem 0 1rem;
+}
+.tool-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tool-header-title h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.tool-header-title .back-arrow {
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--text-muted);
+  transition: color 0.15s;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.tool-header-title .back-arrow:hover {
+  color: var(--primary);
+}
+.tool-header p {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+/* ── Header with finish button ── */
 .tool-header-with-action {
-  text-align: initial;
+  text-align: left;
   padding: 1rem 0 1rem;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 6px;
 }
 .tool-header-with-action .tool-header-title {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.tool-header-with-action p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
 }
 
 /* ── Finish button ── */
@@ -360,6 +364,8 @@
   flex-shrink: 0;
 }
 .finish-btn:hover { background: var(--primary-dark); }
+.finish-btn:disabled { background: var(--border); opacity: 0.6; cursor: not-allowed; }
+.finish-btn:disabled:hover { background: var(--border); }
 
 /* ── Rename dialog ── */
 .rename-section {

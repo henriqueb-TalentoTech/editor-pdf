@@ -35,7 +35,7 @@ function render() {
     : HomeContent()
 
   const layout = renderLayout(state.currentTool, content, (toolId: string) => {
-    state.currentTool = toolId as Tool
+    state.currentTool = toolId === '/home' ? null : toolId as Tool
     render()
   })
 
