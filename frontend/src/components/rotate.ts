@@ -1,77 +1,124 @@
 import { PDFDocument, degrees } from 'pdf-lib'
-import { DropZone } from '../utils/dropzone'
+import { DropZone, hideDropZone, showDropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
+import { setGlobalDropTarget } from '../utils/globalDropzone'
 
-interface RotateViewProps {
-  onBack: () => void
-}
-
-export function RotateView({ onBack }: RotateViewProps): HTMLElement {
+export function RotateView(): HTMLElement {
   const container = document.createElement('div')
 
+  // ── Header ──
   const header = document.createElement('div')
-  header.className = 'tool-header'
+  header.className = 'tool-header tool-header-with-action'
   header.innerHTML = `
-    <button class="back-link">\u2190 Voltar</button>
-    <h2>\ud83d\udd04 Rotacionar</h2>
+    <div class="tool-header-title">
+      <h2>\ud83d\udd04 Rotacionar</h2>
+    </div>
     <p>Gire as p\u00e1ginas do seu PDF</p>
   `
   container.appendChild(header)
-  header.querySelector('.back-link')!.addEventListener('click', onBack)
 
+  // ── Finish button ──
+  const finishBtn = document.createElement('button')
+  finishBtn.className = 'finish-btn'
+  finishBtn.textContent = 'Terminar'
+  finishBtn.style.display = 'none'
+  container.appendChild(finishBtn)
+
+  // ── Drop zone ──
   const dz = DropZone({ accept: '.pdf' })
   container.appendChild(dz)
 
-  const gridContainer = document.createElement('div')
-  container.appendChild(gridContainer)
+  // ── Page grid ──
+  const pageGrid = document.createElement('div')
+  pageGrid.className = 'page-grid'
+  pageGrid.style.display = 'none'
+  container.appendChild(pageGrid)
 
-  const downloadSection = document.createElement('div')
-  downloadSection.className = 'download-section'
-  downloadSection.style.display = 'none'
+  // ── Rename dialog ──
+  const renameSection = document.createElement('div')
+  renameSection.className = 'rename-section'
+  renameSection.style.display = 'none'
+  renameSection.innerHTML = `
+    <h3>\ud83d\udd04 Nome do arquivo</h3>
+    <p>Escolha um nome para o PDF final</p>
+    <input type="text" class="rename-input" placeholder="nome-do-arquivo" value="rotacionado" />
+    <div class="rename-actions">
+      <button class="btn btn-secondary cancel-rename">Cancelar</button>
+      <button class="btn btn-primary confirm-rename">Salvar e Baixar</button>
+    </div>
+  `
+  container.appendChild(renameSection)
 
-  const info = document.createElement('p')
-  info.className = 'info'
-  downloadSection.appendChild(info)
+  const renameInput = renameSection.querySelector('.rename-input') as HTMLInputElement
+  const cancelBtn = renameSection.querySelector('.cancel-rename') as HTMLButtonElement
+  const confirmBtn = renameSection.querySelector('.confirm-rename') as HTMLButtonElement
 
-  const downloadBtn = document.createElement('button')
-  downloadBtn.className = 'btn btn-primary btn-full'
-  downloadBtn.innerHTML = '\ud83d\udce5 Baixar PDF'
-  downloadBtn.disabled = false
-  downloadSection.appendChild(downloadBtn)
-  container.appendChild(downloadSection)
-
+  // ── State ──
   let angles: Record<number, number> = {}
   let uploadedFile: File | null = null
   let pdfData: Uint8Array | null = null
-  let numPages = 0
+
+  function handleFile(file: File) {
+    uploadedFile = file
+    angles = {}
+    pdfData = null
+    renderAll()
+  }
 
   dz.addEventListener('file-selected', ((e: Event) => {
     const event = e as CustomEvent
-    uploadedFile = event.detail.file
-    angles = {}
-    pdfData = null
-    numPages = 0
-    renderAll()
+    handleFile(event.detail.file)
   }) as EventListener)
+
+  setGlobalDropTarget('pdf', (dropped: File[]) => {
+    if (dropped.length > 0) handleFile(dropped[0])
+  })
+
+  // ── Finish flow ──
+  finishBtn.addEventListener('click', () => {
+    if (Object.keys(angles).length === 0) return
+    header.style.display = 'none'
+    pageGrid.style.display = 'none'
+    dz.style.display = 'none'
+    finishBtn.style.display = 'none'
+    renameSection.style.display = 'flex'
+    renameInput.focus()
+    renameInput.select()
+  })
+
+  cancelBtn.addEventListener('click', () => {
+    renameSection.style.display = 'none'
+    header.style.display = ''
+    pageGrid.style.display = ''
+    dz.style.display = 'none'
+    if (uploadedFile) finishBtn.style.display = 'inline-flex'
+  })
+
+  confirmBtn.addEventListener('click', doDownload)
+
+  renameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doDownload()
+    if (e.key === 'Escape') cancelBtn.click()
+  })
 
   async function renderAll() {
     if (!uploadedFile) return
 
-    gridContainer.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Carregando...</p>'
+    hideDropZone(dz)
+    pageGrid.style.display = ''
+    pageGrid.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Carregando...</p>'
 
     const buf = await uploadedFile!.arrayBuffer()
     pdfData = new Uint8Array(buf)
 
-    // Load PDF for page info (no rendering needed, just get count + sizes)
     const docForInfo = await PDFDocument.load(pdfData, { ignoreEncryption: true })
-    numPages = docForInfo.getPageCount()
+    const numPages = docForInfo.getPageCount()
 
-    gridContainer.innerHTML = ''
+    pageGrid.innerHTML = ''
     const grid = document.createElement('div')
     grid.className = 'page-grid'
-    gridContainer.appendChild(grid)
+    pageGrid.appendChild(grid)
 
-    // Use PDF.js for rendering thumbnails
     await loadPdfJs()
     const pdfjs = (window as any).pdfjsLib
     const pdf = await pdfjs.getDocument({ data: pdfData!.slice() }).promise
@@ -118,7 +165,7 @@ export function RotateView({ onBack }: RotateViewProps): HTMLElement {
           canvas.style.transform = `rotate(${angles[idx]}deg)`
           rotBtn.textContent = `\ud83d\udd04 ${angles[idx]}\u00b0`
         }
-        updateDownload()
+        updateFinish()
       })
       actions.appendChild(rotBtn)
       card.appendChild(actions)
@@ -126,22 +173,17 @@ export function RotateView({ onBack }: RotateViewProps): HTMLElement {
       grid.appendChild(card)
     }
 
-    updateDownload()
+    updateFinish()
   }
 
-  function updateDownload() {
-    const count = Object.keys(angles).length
-    downloadSection.style.display = count > 0 ? 'block' : 'none'
-    info.textContent = count > 0
-      ? `${count} p\u00e1gina(s) rotacionada(s)`
-      : 'Nenhuma p\u00e1gina foi rotacionada'
-    downloadBtn.disabled = count === 0
+  function updateFinish() {
+    finishBtn.style.display = Object.keys(angles).length > 0 ? 'inline-flex' : 'none'
   }
 
-  downloadBtn.addEventListener('click', async () => {
+  async function doDownload() {
     if (!pdfData) return
-    downloadBtn.disabled = true
-    downloadBtn.innerHTML = '<span class="spinner"></span> Processando...'
+    confirmBtn.disabled = true
+    confirmBtn.innerHTML = '<span class="spinner"></span> Processando...'
 
     try {
       const newDoc = await PDFDocument.load(pdfData, { ignoreEncryption: true })
@@ -153,15 +195,21 @@ export function RotateView({ onBack }: RotateViewProps): HTMLElement {
         }
       }
       const pdf = await newDoc.save()
-      downloadBlob(new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), 'rotacionado.pdf')
+      const filename = (renameInput.value.trim() || 'rotacionado').replace(/\.pdf$/i, '') + '.pdf'
+      downloadBlob(new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), filename)
       showToast('PDF baixado com sucesso!')
     } catch (err: any) {
       showToast(`Erro: ${err.message}`, true)
     }
 
-    downloadBtn.innerHTML = '\ud83d\udce5 Baixar PDF'
-    downloadBtn.disabled = false
-  })
+    confirmBtn.disabled = false
+    confirmBtn.textContent = 'Salvar e Baixar'
+    renameSection.style.display = 'none'
+    header.style.display = ''
+    pageGrid.style.display = ''
+    dz.style.display = 'none'
+    if (uploadedFile) finishBtn.style.display = 'inline-flex'
+  }
 
   return container
 }

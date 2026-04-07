@@ -16,7 +16,9 @@
       "Bash(lsof -ti:8000)",
       "Bash(git*)",
       "Bash(npx vite:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:smallpdf.com)",
+      "WebSearch"
     ]
   }
 }

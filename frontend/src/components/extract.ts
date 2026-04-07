@@ -1,57 +1,104 @@
 import { PDFDocument } from 'pdf-lib'
 import { DropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
+import { setGlobalDropTarget } from '../utils/globalDropzone'
 
-interface ExtractViewProps {
-  onBack: () => void
-}
-
-export function ExtractView({ onBack }: ExtractViewProps): HTMLElement {
+export function ExtractView(): HTMLElement {
   const container = document.createElement('div')
 
+  // ── Header ──
   const header = document.createElement('div')
-  header.className = 'tool-header'
+  header.className = 'tool-header tool-header-with-action'
   header.innerHTML = `
-    <button class="back-link">\u2190 Voltar</button>
-    <h2>\u2702\ufe0f Extrair P\u00e1ginas</h2>
+    <div class="tool-header-title">
+      <h2>\u2702\ufe0f Extrair P\u00e1ginas</h2>
+    </div>
     <p>Selecione as p\u00e1ginas que deseja extrair</p>
   `
   container.appendChild(header)
-  header.querySelector('.back-link')!.addEventListener('click', onBack)
 
+  // ── Finish button ──
+  const finishBtn = document.createElement('button')
+  finishBtn.className = 'finish-btn'
+  finishBtn.textContent = 'Terminar'
+  finishBtn.style.display = 'none'
+  container.appendChild(finishBtn)
+
+  // ── Drop zone ──
   const dz = DropZone({ accept: '.pdf' })
   container.appendChild(dz)
 
+  // ── Page grid ──
   const pageGrid = document.createElement('div')
   pageGrid.className = 'page-grid'
   container.appendChild(pageGrid)
 
-  const downloadSection = document.createElement('div')
-  downloadSection.className = 'download-section'
-  downloadSection.style.display = 'none'
+  // ── Rename dialog ──
+  const renameSection = document.createElement('div')
+  renameSection.className = 'rename-section'
+  renameSection.style.display = 'none'
+  renameSection.innerHTML = `
+    <h3>\ud83d\udcc4 Nome do arquivo</h3>
+    <p>Escolha um nome para o PDF final</p>
+    <input type="text" class="rename-input" placeholder="nome-do-arquivo" value="extraido" />
+    <div class="rename-actions">
+      <button class="btn btn-secondary cancel-rename">Cancelar</button>
+      <button class="btn btn-primary confirm-rename">Salvar e Baixar</button>
+    </div>
+  `
+  container.appendChild(renameSection)
 
-  const info = document.createElement('p')
-  info.className = 'info'
-  downloadSection.appendChild(info)
+  const renameInput = renameSection.querySelector('.rename-input') as HTMLInputElement
+  const cancelBtn = renameSection.querySelector('.cancel-rename') as HTMLButtonElement
+  const confirmBtn = renameSection.querySelector('.confirm-rename') as HTMLButtonElement
 
-  const downloadBtn = document.createElement('button')
-  downloadBtn.className = 'btn btn-primary'
-  downloadBtn.innerHTML = '\ud83d\udce5 Baixar p\u00e1ginas selecionadas'
-  downloadBtn.disabled = true
-  downloadSection.appendChild(downloadBtn)
-  container.appendChild(downloadSection)
+  finishBtn.addEventListener('click', () => {
+    if (selected.size === 0) return
+    header.style.display = 'none'
+    pageGrid.style.display = 'none'
+    dz.style.display = 'none'
+    finishBtn.style.display = 'none'
+    renameSection.style.display = 'flex'
+    renameInput.focus()
+    renameInput.select()
+  })
 
+  cancelBtn.addEventListener('click', () => {
+    renameSection.style.display = 'none'
+    header.style.display = ''
+    pageGrid.style.display = ''
+    dz.style.display = 'none'
+    if (uploadedFile) finishBtn.style.display = 'inline-flex'
+  })
+
+  confirmBtn.addEventListener('click', doDownload)
+
+  renameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doDownload()
+    if (e.key === 'Escape') cancelBtn.click()
+  })
+
+  // ── State ──
   let selected = new Set<number>()
   let srcBytes: Uint8Array | null = null
-  let numPages = 0
+  let uploadedFile: File | null = null
 
   dz.addEventListener('file-selected', ((e: Event) => {
     const event = e as CustomEvent
-    const file: File = event.detail.file
+    uploadedFile = event.detail.file
     selected = new Set()
     srcBytes = null
-    loadPdf(file)
+    loadPdf(event.detail.file)
   }) as EventListener)
+
+  setGlobalDropTarget('pdf', (dropped: File[]) => {
+    if (dropped.length > 0) {
+      uploadedFile = dropped[0]
+      selected = new Set()
+      srcBytes = null
+      loadPdf(dropped[0])
+    }
+  })
 
   async function loadPdf(file: File) {
     pageGrid.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Carregando...</p>'
@@ -59,11 +106,9 @@ export function ExtractView({ onBack }: ExtractViewProps): HTMLElement {
     const buf = await file.arrayBuffer()
     srcBytes = new Uint8Array(buf)
 
-    // Get page count via pdf-lib
     const doc = await PDFDocument.load(srcBytes, { ignoreEncryption: true })
-    numPages = doc.getPageCount()
+    const numPages = doc.getPageCount()
 
-    // Render previews via pdf.js
     await loadPdfJs()
     const pdfjs = (window as any).pdfjsLib
     const pdf = await pdfjs.getDocument({ data: srcBytes.slice() }).promise
@@ -120,26 +165,25 @@ export function ExtractView({ onBack }: ExtractViewProps): HTMLElement {
           badge.style.display = 'block'
           selBtn.textContent = '\u2705 Remover'
         }
-        updateDownload()
+        updateFinish()
       })
       actions.appendChild(selBtn)
       card.appendChild(actions)
 
       grid.appendChild(card)
     }
+
+    updateFinish()
   }
 
-  function updateDownload() {
-    const count = selected.size
-    downloadSection.style.display = count > 0 ? 'block' : 'none'
-    info.textContent = `${count} p\u00e1gina${count > 1 ? 's' : ''} selecionada${count > 1 ? 's' : ''}`
-    downloadBtn.disabled = count === 0
+  function updateFinish() {
+    finishBtn.style.display = selected.size > 0 ? 'inline-flex' : 'none'
   }
 
-  downloadBtn.addEventListener('click', async () => {
+  async function doDownload() {
     if (!srcBytes || selected.size === 0) return
-    downloadBtn.disabled = true
-    downloadBtn.innerHTML = '<span class="spinner"></span> Processando...'
+    confirmBtn.disabled = true
+    confirmBtn.innerHTML = '<span class="spinner"></span> Processando...'
 
     try {
       const newDoc = await PDFDocument.create()
@@ -149,15 +193,21 @@ export function ExtractView({ onBack }: ExtractViewProps): HTMLElement {
         newDoc.addPage(page)
       }
       const pdf = await newDoc.save()
-      downloadBlob(new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), 'extraido.pdf')
+      const filename = (renameInput.value.trim() || 'extraido').replace(/\.pdf$/i, '') + '.pdf'
+      downloadBlob(new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), filename)
       showToast('PDF baixado com sucesso!')
     } catch (err: any) {
       showToast(`Erro: ${err.message}`, true)
     }
 
-    downloadBtn.innerHTML = '\ud83d\udce5 Baixar p\u00e1ginas selecionadas'
-    downloadBtn.disabled = false
-  })
+    confirmBtn.disabled = false
+    confirmBtn.textContent = 'Salvar e Baixar'
+    renameSection.style.display = 'none'
+    header.style.display = ''
+    pageGrid.style.display = ''
+    dz.style.display = 'none'
+    if (uploadedFile) finishBtn.style.display = 'inline-flex'
+  }
 
   return container
 }

@@ -1,7 +1,3 @@
-interface HomeViewProps {
-  onNavigate: (tool: 'rotate' | 'extract' | 'merge' | 'img2pdf') => void
-}
-
 const tools = [
   { id: 'rotate' as const, icon: '\ud83d\udd04', title: 'Rotacionar', desc: 'Gire p\u00e1ginas do seu PDF' },
   { id: 'extract' as const, icon: '\u2702\ufe0f', title: 'Extrair', desc: 'Selecione e extraia p\u00e1ginas' },
@@ -9,10 +5,9 @@ const tools = [
   { id: 'img2pdf' as const, icon: '\ud83d\uddbc\ufe0f', title: 'Imagens \u2192 PDF', desc: 'Converta imagens para PDF' },
 ]
 
-export function HomeView({ onNavigate }: HomeViewProps): HTMLElement {
+export function HomeContent(): HTMLElement {
   const container = document.createElement('div')
 
-  // Hero
   const hero = document.createElement('div')
   hero.className = 'hero'
   hero.innerHTML = `
@@ -22,7 +17,6 @@ export function HomeView({ onNavigate }: HomeViewProps): HTMLElement {
   `
   container.appendChild(hero)
 
-  // Tool cards
   const grid = document.createElement('div')
   grid.className = 'tools-grid'
 
@@ -34,7 +28,9 @@ export function HomeView({ onNavigate }: HomeViewProps): HTMLElement {
       <h3>${tool.title}</h3>
       <p>${tool.desc}</p>
     `
-    card.addEventListener('click', () => onNavigate(tool.id))
+    card.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('navigate-tool', { detail: { tool: tool.id } }))
+    })
     grid.appendChild(card)
   }
 
