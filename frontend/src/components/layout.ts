@@ -1,3 +1,5 @@
+import { getTheme, setTheme, type ThemeMode } from '../utils/theme'
+
 const tools = [
   { id: 'rotate', icon: '\ud83d\udd04', title: 'Rotacionar' },
   { id: 'extract', icon: '\u2702\ufe0f', title: 'Extrair' },
@@ -41,7 +43,40 @@ function renderSidebar(activeTool: string | null, onToolClick: (toolId: string) 
   }
 
   sidebar.appendChild(nav)
+  sidebar.appendChild(renderThemeSelector())
+
   return sidebar
+}
+
+function renderThemeSelector(): HTMLElement {
+  const bar = document.createElement('div')
+  bar.className = 'theme-selector'
+
+  const current = getTheme()
+  const themes: { mode: ThemeMode; icon: string; label: string }[] = [
+    { mode: 'system', icon: '\ud83d\udcbb', label: 'Sistema' },
+    { mode: 'light', icon: '\u2600\ufe0f', label: 'Claro' },
+    { mode: 'dark', icon: '\ud83c\udf19', label: 'Escuro' },
+  ]
+
+  for (const t of themes) {
+    const btn = document.createElement('button')
+    btn.className = `theme-btn${t.mode === current ? ' active' : ''}`
+    btn.dataset.mode = t.mode
+    btn.innerHTML = `<span class="theme-btn-icon">${t.icon}</span>${t.label}`
+    btn.addEventListener('click', () => setTheme(t.mode))
+    bar.appendChild(btn)
+  }
+
+  // Update active state when theme changes
+  window.addEventListener('theme-change', ((e: Event) => {
+    const activeMode = (e as CustomEvent).detail.mode
+    bar.querySelectorAll<HTMLButtonElement>('.theme-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === activeMode)
+    })
+  }) as EventListener)
+
+  return bar
 }
 
 export function renderLayout(activeTool: string | null, children: HTMLElement, onToolClick: (toolId: string) => void): HTMLElement {

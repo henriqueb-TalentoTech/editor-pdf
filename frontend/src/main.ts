@@ -7,12 +7,16 @@ import { RotateView } from './components/rotate'
 import { ExtractView } from './components/extract'
 import { MergeView } from './components/merge'
 import { Img2PdfView } from './components/img2pdf'
+import { initTheme } from './utils/theme'
 
 type Tool = 'rotate' | 'extract' | 'merge' | 'img2pdf' | null
 
 const state = { currentTool: null as Tool }
 
 const app = document.getElementById('app')!
+
+// Theme change triggers re-render
+window.addEventListener('theme-change', () => render())
 
 // Sidebar navigation
 window.addEventListener('navigate-tool', ((e: Event) => {
@@ -42,4 +46,5 @@ function render() {
   app.appendChild(layout)
 }
 
+initTheme()
 render()

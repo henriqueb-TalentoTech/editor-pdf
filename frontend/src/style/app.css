@@ -179,7 +179,7 @@
 
 .tools-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px;
   margin-top: 1rem;
 }
@@ -366,6 +366,41 @@
 .finish-btn:hover { background: var(--primary-dark); }
 .finish-btn:disabled { background: var(--border); opacity: 0.6; cursor: not-allowed; }
 .finish-btn:disabled:hover { background: var(--border); }
+
+/* ── Theme selector ── */
+.theme-selector {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 6px 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+.theme-btn:hover { background: var(--bg); }
+.theme-btn.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+.theme-btn-icon {
+  font-size: 14px;
+  margin-right: 4px;
+}
 
 /* ── Rename dialog ── */
 .rename-section {
