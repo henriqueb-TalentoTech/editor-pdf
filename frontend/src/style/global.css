@@ -115,32 +115,203 @@ body {
 
 /* ── Page grid ───────────────────────────────────────── */
 .page-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
   margin-top: 1.5rem;
+  justify-content: flex-start;
 }
+
 .page-card {
+  position: relative;
   background: var(--card);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
   border: 3px solid transparent;
+  cursor: default;
+  width: 185px;
 }
-.page-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
-.page-card.selected { border-color: var(--primary); }
-.page-card img { width: 100%; display: block; }
-.page-card .page-actions {
-  padding: 8px; display: flex; justify-content: center;
+.page-card:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.page-card.selected {
+  border-color: var(--primary);
+}
+.page-card.dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+}
+
+/* Page thumbnail container - fixed smallpdf size */
+.page-thumb {
+  width: 185px;
+  height: 262px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  overflow: hidden;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.page-thumb canvas,
+.page-thumb img {
+  max-width: 185px;
+  max-height: 262px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Action buttons on page card */
+.page-card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+}
+.page-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #fff;
+}
+.page-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.page-icon-btn.remove {
+  background: rgba(220, 38, 38, 0.9);
+}
+.page-icon-btn.remove:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+.page-icon-btn.zoom {
+  background: rgba(0, 0, 0, 0.6);
+}
+.page-icon-btn.zoom:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.1);
+}
+
+/* Page card footer */
+.page-card-footer {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--card);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.page-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Drop placeholder - same size as page card */
+.drop-placeholder {
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+  aspect-ratio: 210 / 297;
+}
+
+/* Add file card (inline, like smallpdf) */
+.add-file-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--card);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  min-height: 200px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 600;
+}
+.add-file-card:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.add-file-card .add-icon {
+  font-size: 28px;
+  line-height: 1;
 }
 
 /* ── Badge ───────────────────────────────────────────── */
 .badge {
-  position: absolute; top: 8px; left: 8px;
-  background: var(--primary); color: #fff;
-  font-size: 12px; font-weight: 700;
-  padding: 4px 10px; border-radius: 20px;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* ── Zoom modal ──────────────────────────────────────── */
+.zoom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+  animation: fadeIn 0.2s ease;
+}
+.zoom-modal-overlay canvas,
+.zoom-modal-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-sm);
+}
+.zoom-modal-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.zoom-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* ── Loading spinner ─────────────────────────────────── */

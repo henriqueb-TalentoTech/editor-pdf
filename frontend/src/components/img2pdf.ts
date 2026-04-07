@@ -1,61 +1,51 @@
 import { PDFDocument } from 'pdf-lib'
-import { MultiDropZone, hideDropZone, showDropZone } from '../utils/dropzone'
+import { MultiDropZone, hideDropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
 import { setGlobalDropTarget } from '../utils/globalDropzone'
 
 export function Img2PdfView(): HTMLElement {
   const container = document.createElement('div')
 
-  // ── Header ──
+  // Header
   const header = document.createElement('div')
   header.className = 'tool-header tool-header-with-action'
   header.innerHTML = `
-    <div class="tool-header-title">
-      <h2>\ud83d\uddbc\ufe0f Imagens para PDF</h2>
-    </div>
+    <div class="tool-header-title"><h2>\ud83d\uddbc\ufe0f Imagens para PDF</h2></div>
     <p>Converta suas imagens para um arquivo PDF</p>
   `
   container.appendChild(header)
 
-  // ── Finish button ──
   const finishBtn = document.createElement('button')
   finishBtn.className = 'finish-btn'
   finishBtn.textContent = 'Terminar'
   finishBtn.style.display = 'none'
   container.appendChild(finishBtn)
 
-  // ── Drop zone (shown when no files) ──
   const dz = MultiDropZone({ accept: '.png,.jpg,.jpeg' })
   container.appendChild(dz)
 
-  // ── Inline "Add file" input ──
+  const pageGrid = document.createElement('div')
+  pageGrid.className = 'page-grid'
+  pageGrid.style.display = 'none'
+  container.appendChild(pageGrid)
+
+  // Hidden add input
   const addInput = document.createElement('input')
   addInput.type = 'file'
   addInput.accept = '.png,.jpg,.jpeg'
   addInput.multiple = true
   addInput.style.display = 'none'
   container.appendChild(addInput)
-
   addInput.addEventListener('change', () => {
-    if (addInput.files && addInput.files.length > 0) {
-      addFiles(Array.from(addInput.files))
-      addInput.value = ''
-    }
+    if (addInput.files?.length) { addFiles(Array.from(addInput.files)); addInput.value = '' }
   })
 
-  // ── Preview grid ──
-  const previewGrid = document.createElement('div')
-  previewGrid.className = 'file-list'
-  previewGrid.style.display = 'none'
-  container.appendChild(previewGrid)
-
-  // ── Rename dialog ──
+  // Rename dialog
   const renameSection = document.createElement('div')
   renameSection.className = 'rename-section'
   renameSection.style.display = 'none'
   renameSection.innerHTML = `
-    <h3>\ud83d\uddbc\ufe0f Nome do arquivo</h3>
-    <p>Escolha um nome para o PDF final</p>
+    <h3>\ud83d\uddbc\ufe0f Nome do arquivo</h3><p>Escolha um nome para o PDF final</p>
     <input type="text" class="rename-input" placeholder="nome-do-arquivo" value="imagens" />
     <div class="rename-actions">
       <button class="btn btn-secondary cancel-rename">Cancelar</button>
@@ -68,93 +58,167 @@ export function Img2PdfView(): HTMLElement {
   const cancelBtn = renameSection.querySelector('.cancel-rename') as HTMLButtonElement
   const confirmBtn = renameSection.querySelector('.confirm-rename') as HTMLButtonElement
 
-  // ── State ──
   let files: File[] = []
 
   dz.addEventListener('files-selected', ((e: Event) => {
-    const event = e as CustomEvent
-    files = event.detail.files
+    files = (e as CustomEvent).detail.files as File[]
     renderPreviews()
   }) as EventListener)
 
-  setGlobalDropTarget('image', (dropped: File[]) => {
+  setGlobalDropTarget('image', (dropped) => {
     for (const f of dropped) {
-      if (!files.some(existing => existing.name === f.name && existing.size === f.size)) {
-        files.push(f)
-      }
+      if (!files.some(x => x.name === f.name && x.size === f.size)) files.push(f)
     }
     renderPreviews()
   })
 
   function addFiles(newFiles: File[]) {
     for (const f of newFiles) {
-      if (!files.some(existing => existing.name === f.name && existing.size === f.size)) {
-        files.push(f)
-      }
+      if (!files.some(x => x.name === f.name && x.size === f.size)) files.push(f)
     }
     renderPreviews()
   }
 
   function renderPreviews() {
-    previewGrid.innerHTML = ''
+    pageGrid.innerHTML = ''
 
     if (files.length > 0) {
       hideDropZone(dz)
-      previewGrid.style.display = 'flex'
+      pageGrid.style.display = ''
+      const grid = document.createElement('div')
+      grid.className = 'page-grid'
+      pageGrid.appendChild(grid)
 
       for (let i = 0; i < files.length; i++) {
-        const card = document.createElement('div')
-        card.className = 'file-chip'
-        card.innerHTML = `
-          <span>\ud83d\uddbc\ufe0f</span>
-          <strong>${escapeHtml(files[i].name)}</strong>
-          <span class="remove" data-idx="${i}">\u2715</span>
-        `
-        card.querySelector('.remove')!.addEventListener('click', (ev) => {
-          ev.stopPropagation()
-          const idx = Number((ev.target as HTMLElement).dataset.idx)
-          files.splice(idx, 1)
-          renderPreviews()
-        })
-        previewGrid.appendChild(card)
+        createImgCard(i, grid)
       }
 
-      // Inline "Add file" card
+      // Add file card
       const addCard = document.createElement('div')
       addCard.className = 'add-file-card'
       addCard.innerHTML = `<span class="add-icon">+</span> Adicionar`
       addCard.addEventListener('click', () => addInput.click())
-      previewGrid.appendChild(addCard)
+      grid.appendChild(addCard)
 
       finishBtn.style.display = 'inline-flex'
     } else {
-      showDropZone(dz)
-      previewGrid.style.display = 'none'
+      pageGrid.style.display = 'none'
+      dz.style.display = ''
       finishBtn.style.display = 'none'
     }
   }
 
+  function createImgCard(i: number, grid: HTMLElement) {
+    const file = files[i]
+    const card = document.createElement('div')
+    card.className = 'page-card'
+
+    const thumb = document.createElement('div')
+    thumb.className = 'page-thumb'
+    const img = document.createElement('img')
+    img.src = URL.createObjectURL(file)
+    img.onload = () => URL.revokeObjectURL(img.src)
+    thumb.appendChild(img)
+    card.appendChild(thumb)
+
+    // Badge
+    const badge = document.createElement('div')
+    badge.className = 'badge'
+    badge.textContent = String(i + 1)
+    card.appendChild(badge)
+
+    // Action buttons
+    const actions = document.createElement('div')
+    actions.className = 'page-card-actions'
+
+    // Zoom
+    const zoomBtn = document.createElement('button')
+    zoomBtn.className = 'page-icon-btn zoom'
+    zoomBtn.title = 'Visualizar'
+    zoomBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+    </svg>`
+    zoomBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      openZoom(i, img.cloneNode() as HTMLImageElement)
+    })
+    actions.appendChild(zoomBtn)
+
+    // Remove
+    const removeBtn = document.createElement('button')
+    removeBtn.className = 'page-icon-btn remove'
+    removeBtn.title = 'Remover'
+    removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+    </svg>`
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      files.splice(i, 1)
+      renderPreviews()
+    })
+    actions.appendChild(removeBtn)
+
+    card.appendChild(actions)
+
+    // Footer
+    const footer = document.createElement('div')
+    footer.className = 'page-card-footer'
+    footer.innerHTML = `<span class="page-card-label" title="${file.name}">${file.name.length > 16 ? file.name.slice(0, 13) + '...' : file.name}</span>`
+    card.appendChild(footer)
+
+    grid.appendChild(card)
+  }
+
+  function openZoom(_i: number, thumbImg: HTMLImageElement) {
+    const overlay = document.createElement('div')
+    overlay.className = 'zoom-modal-overlay'
+    overlay.style.cursor = 'auto'
+    overlay.innerHTML = `
+      <button class="zoom-modal-close">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:24px;height:24px;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+      </button>
+    `
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove() })
+    overlay.querySelector('.zoom-modal-close')!.addEventListener('click', (ev) => { ev.stopPropagation(); overlay.remove() })
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey) }
+    }
+    document.addEventListener('keydown', onKey)
+
+    // Full resolution image
+    const fullImg = document.createElement('img')
+    fullImg.src = thumbImg.src
+    fullImg.style.maxWidth = '90vw'
+    fullImg.style.maxHeight = '90vh'
+    fullImg.style.boxShadow = '0 4px 40px rgba(0,0,0,0.5)'
+    fullImg.style.borderRadius = 'var(--radius-sm)'
+    overlay.insertBefore(fullImg, overlay.querySelector('.zoom-modal-close'))
+
+    document.body.appendChild(overlay)
+  }
+
+  // Finish flow
   finishBtn.addEventListener('click', () => {
     if (files.length === 0) return
     header.style.display = 'none'
-    previewGrid.style.display = 'none'
+    pageGrid.style.display = 'none'
     dz.style.display = 'none'
     finishBtn.style.display = 'none'
     renameSection.style.display = 'flex'
-    renameInput.focus()
-    renameInput.select()
+    renameInput.focus(); renameInput.select()
   })
 
   cancelBtn.addEventListener('click', () => {
     renameSection.style.display = 'none'
     header.style.display = ''
-    previewGrid.style.display = files.length > 0 ? 'flex' : 'none'
+    pageGrid.style.display = files.length > 0 ? '' : 'none'
     dz.style.display = files.length === 0 ? '' : 'none'
     if (files.length > 0) finishBtn.style.display = 'inline-flex'
   })
 
   confirmBtn.addEventListener('click', doDownload)
-
   renameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') doDownload()
     if (e.key === 'Escape') cancelBtn.click()
@@ -163,31 +227,21 @@ export function Img2PdfView(): HTMLElement {
   async function doDownload() {
     if (files.length === 0) return
     confirmBtn.disabled = true
-    confirmBtn.innerHTML = '<span class="spinner"></span> Processando...'
+    confirmBtn.textContent = 'Salvando...'
 
     try {
       const newDoc = await PDFDocument.create()
       for (const file of files) {
         const buf = await file.arrayBuffer()
         let image: any
-
         if (file.type === 'image/png') {
           image = await newDoc.embedPng(buf)
         } else if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
           image = await newDoc.embedJpg(buf)
-        } else {
-          continue
-        }
-
+        } else { continue }
         const page = newDoc.addPage([image.width, image.height])
-        page.drawImage(image, {
-          x: 0,
-          y: 0,
-          width: image.width,
-          height: image.height,
-        })
+        page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
       }
-
       const pdfBytes = await newDoc.save()
       const filename = (renameInput.value.trim() || 'imagens').replace(/\.pdf$/i, '') + '.pdf'
       downloadBlob(new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' }), filename)
@@ -200,13 +254,9 @@ export function Img2PdfView(): HTMLElement {
     confirmBtn.textContent = 'Salvar e Baixar'
     renameSection.style.display = 'none'
     header.style.display = ''
-    previewGrid.style.display = files.length > 0 ? 'flex' : 'none'
+    pageGrid.style.display = files.length > 0 ? '' : 'none'
     dz.style.display = files.length === 0 ? '' : 'none'
     if (files.length > 0) finishBtn.style.display = 'inline-flex'
-  }
-
-  function escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
 
   return container
