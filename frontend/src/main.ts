@@ -7,8 +7,6 @@ import { ExtractView } from './components/extract'
 import { MergeView } from './components/merge'
 import { Img2PdfView } from './components/img2pdf'
 
-const API = import.meta.env.VITE_API_URL ?? ''
-
 type Tool = 'rotate' | 'extract' | 'merge' | 'img2pdf' | null
 
 interface State {
@@ -29,13 +27,13 @@ function render() {
   }))
 
   if (state.currentTool === 'rotate') {
-    app.appendChild(RotateView({ api: API, onBack: () => { state.currentTool = null; render() } }))
+    app.appendChild(RotateView({ onBack: () => { state.currentTool = null; render() } }))
   } else if (state.currentTool === 'extract') {
-    app.appendChild(ExtractView({ api: API, onBack: () => { state.currentTool = null; render() } }))
+    app.appendChild(ExtractView({ onBack: () => { state.currentTool = null; render() } }))
   } else if (state.currentTool === 'merge') {
-    app.appendChild(MergeView({ api: API, onBack: () => { state.currentTool = null; render() } }))
+    app.appendChild(MergeView({ onBack: () => { state.currentTool = null; render() } }))
   } else if (state.currentTool === 'img2pdf') {
-    app.appendChild(Img2PdfView({ api: API, onBack: () => { state.currentTool = null; render() } }))
+    app.appendChild(Img2PdfView({ onBack: () => { state.currentTool = null; render() } }))
   }
 }
 

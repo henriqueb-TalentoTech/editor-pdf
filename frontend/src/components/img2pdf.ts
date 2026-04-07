@@ -1,12 +1,12 @@
+import { PDFDocument } from 'pdf-lib'
 import { MultiDropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
 
 interface Img2PdfViewProps {
-  api: string
   onBack: () => void
 }
 
-export function Img2PdfView({ api, onBack }: Img2PdfViewProps): HTMLElement {
+export function Img2PdfView({ onBack }: Img2PdfViewProps): HTMLElement {
   const container = document.createElement('div')
 
   const header = document.createElement('div')
@@ -94,19 +94,34 @@ export function Img2PdfView({ api, onBack }: Img2PdfViewProps): HTMLElement {
     downloadBtn.innerHTML = '<span class="spinner"></span> Processando...'
 
     try {
-      const formData = new FormData()
-      for (const f of files) {
-        formData.append('files', f)
+      const newDoc = await PDFDocument.create()
+
+      for (const file of files) {
+        const buf = await file.arrayBuffer()
+        let image: any
+
+        if (file.type === 'image/png') {
+          image = await newDoc.embedPng(buf)
+        } else if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
+          image = await newDoc.embedJpg(buf)
+        } else {
+          continue
+        }
+
+        const page = newDoc.addPage([image.width, image.height])
+        page.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: image.width,
+          height: image.height,
+        })
       }
 
-      const res = await fetch(`${api}/api/img2pdf`, { method: 'POST', body: formData })
-      if (!res.ok) throw new Error('Erro ao processar')
-
-      const blob = await res.blob()
-      downloadBlob(blob, 'imagens.pdf')
+      const pdfBytes = await newDoc.save()
+      downloadBlob(new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' }), 'imagens.pdf')
       showToast('PDF criado com sucesso!')
-    } catch {
-      showToast('Erro ao processar as imagens', true)
+    } catch (err: any) {
+      showToast(`Erro: ${err.message}`, true)
     }
 
     downloadBtn.innerHTML = '\ud83d\udce5 Baixar PDF'

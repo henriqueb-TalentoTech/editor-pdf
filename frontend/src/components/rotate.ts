@@ -1,12 +1,12 @@
+import { PDFDocument, degrees } from 'pdf-lib'
 import { DropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
 
 interface RotateViewProps {
-  api: string
   onBack: () => void
 }
 
-export function RotateView({ api, onBack }: RotateViewProps): HTMLElement {
+export function RotateView({ onBack }: RotateViewProps): HTMLElement {
   const container = document.createElement('div')
 
   const header = document.createElement('div')
@@ -19,7 +19,7 @@ export function RotateView({ api, onBack }: RotateViewProps): HTMLElement {
   container.appendChild(header)
   header.querySelector('.back-link')!.addEventListener('click', onBack)
 
-  const dz = DropZone({ label: 'Seu PDF', accept: '.pdf' })
+  const dz = DropZone({ accept: '.pdf' })
   container.appendChild(dz)
 
   const gridContainer = document.createElement('div')
@@ -58,35 +58,27 @@ export function RotateView({ api, onBack }: RotateViewProps): HTMLElement {
     if (!uploadedFile) return
 
     gridContainer.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Carregando...</p>'
-    await loadPdfJs()
 
-    const data = await uploadedFile!.arrayBuffer()
-    pdfData = new Uint8Array(data)
+    const buf = await uploadedFile!.arrayBuffer()
+    pdfData = new Uint8Array(buf)
 
-    const pdfjs = (window as any).pdfjsLib
-    const pdf = await pdfjs.getDocument({ data: pdfData.slice() }).promise
-    numPages = pdf.numPages
+    // Load PDF for page info (no rendering needed, just get count + sizes)
+    const docForInfo = await PDFDocument.load(pdfData, { ignoreEncryption: true })
+    numPages = docForInfo.getPageCount()
 
     gridContainer.innerHTML = ''
     const grid = document.createElement('div')
     grid.className = 'page-grid'
     gridContainer.appendChild(grid)
 
-    for (let i = 1; i <= numPages; i++) {
-      const page = await pdf.getPage(i)
+    // Use PDF.js for rendering thumbnails
+    await loadPdfJs()
+    const pdfjs = (window as any).pdfjsLib
+    const pdf = await pdfjs.getDocument({ data: pdfData!.slice() }).promise
+
+    for (let i = 0; i < numPages; i++) {
+      const page = await pdf.getPage(i + 1)
       const viewport = page.getViewport({ scale: 1.0 })
-
-      // Card
-      const card = document.createElement('div')
-      card.className = 'page-card'
-      card.style.position = 'relative'
-
-      const badge = document.createElement('div')
-      badge.className = 'badge'
-      badge.textContent = String(i)
-      card.appendChild(badge)
-
-      // Canvas
       const canvas = document.createElement('canvas')
       canvas.style.width = '100%'
       canvas.style.display = 'block'
@@ -95,18 +87,23 @@ export function RotateView({ api, onBack }: RotateViewProps): HTMLElement {
       const dpr = window.devicePixelRatio || 1
       canvas.width = viewport.width * dpr
       canvas.height = viewport.height * dpr
-
       const ctx = canvas.getContext('2d')!
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       await page.render({ canvasContext: ctx, viewport }).promise
 
+      const card = document.createElement('div')
+      card.className = 'page-card'
+      card.style.position = 'relative'
+
+      const badge = document.createElement('div')
+      badge.className = 'badge'
+      badge.textContent = String(i + 1)
+      card.appendChild(badge)
       card.appendChild(canvas)
 
-      // Button
       const actions = document.createElement('div')
       actions.className = 'page-actions'
-
-      const idx = i - 1
+      const idx = i
       const rotBtn = document.createElement('button')
       rotBtn.className = 'btn btn-secondary'
       rotBtn.style.fontSize = '13px'
@@ -142,23 +139,21 @@ export function RotateView({ api, onBack }: RotateViewProps): HTMLElement {
   }
 
   downloadBtn.addEventListener('click', async () => {
-    if (!uploadedFile) return
+    if (!pdfData) return
     downloadBtn.disabled = true
     downloadBtn.innerHTML = '<span class="spinner"></span> Processando...'
 
     try {
-      const formData = new FormData()
-      formData.append('file', uploadedFile)
-
-      const params = new URLSearchParams({ angles: JSON.stringify(angles) })
-      const res = await fetch(`${api}/api/rotate?${params}`, { method: 'POST', body: formData })
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text.slice(0, 200))
+      const newDoc = await PDFDocument.load(pdfData, { ignoreEncryption: true })
+      for (const [idx, angle] of Object.entries(angles)) {
+        if (angle) {
+          const page = newDoc.getPage(Number(idx))
+          const current = page.getRotation().angle
+          page.setRotation(degrees(current + Number(angle)))
+        }
       }
-
-      const blob = await res.blob()
-      downloadBlob(blob, 'rotacionado.pdf')
+      const pdf = await newDoc.save()
+      downloadBlob(new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), 'rotacionado.pdf')
       showToast('PDF baixado com sucesso!')
     } catch (err: any) {
       showToast(`Erro: ${err.message}`, true)
@@ -171,15 +166,15 @@ export function RotateView({ api, onBack }: RotateViewProps): HTMLElement {
   return container
 }
 
-const CDN_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
-const CDN_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+const PDFJS_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 
 async function loadPdfJs(): Promise<void> {
   if ((window as any).pdfjsLib) return
-  await loadScript(CDN_WORKER)
-  await loadScript(CDN_LIB)
+  await loadScript(PDFJS_WORKER)
+  await loadScript(PDFJS_LIB)
   const w = window as any
-  w.pdfjsLib.GlobalWorkerOptions.workerSrc = CDN_WORKER
+  w.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER
 }
 
 function loadScript(src: string): Promise<void> {

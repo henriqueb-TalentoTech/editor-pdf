@@ -1,12 +1,12 @@
+import { PDFDocument } from 'pdf-lib'
 import { MultiDropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
 
 interface MergeViewProps {
-  api: string
   onBack: () => void
 }
 
-export function MergeView({ api, onBack }: MergeViewProps): HTMLElement {
+export function MergeView({ onBack }: MergeViewProps): HTMLElement {
   const container = document.createElement('div')
 
   const header = document.createElement('div')
@@ -83,19 +83,22 @@ export function MergeView({ api, onBack }: MergeViewProps): HTMLElement {
     downloadBtn.innerHTML = '<span class="spinner"></span> Processando...'
 
     try {
-      const formData = new FormData()
-      for (const f of files) {
-        formData.append('files', f)
+      const mergedDoc = await PDFDocument.create()
+
+      for (const file of files) {
+        const buf = await file.arrayBuffer()
+        const doc = await PDFDocument.load(buf, { ignoreEncryption: true })
+        const pages = await mergedDoc.copyPages(doc, doc.getPageIndices())
+        for (const page of pages) {
+          mergedDoc.addPage(page)
+        }
       }
 
-      const res = await fetch(`${api}/api/merge`, { method: 'POST', body: formData })
-      if (!res.ok) throw new Error('Erro ao processar')
-
-      const blob = await res.blob()
-      downloadBlob(blob, 'unificado.pdf')
+      const pdfBytes = await mergedDoc.save()
+      downloadBlob(new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' }), 'unificado.pdf')
       showToast('PDF unificado baixado!')
-    } catch {
-      showToast('Erro ao processar os PDFs', true)
+    } catch (err: any) {
+      showToast(`Erro: ${err.message}`, true)
     }
 
     downloadBtn.innerHTML = '\ud83d\udce5 Baixar PDF unificado'
