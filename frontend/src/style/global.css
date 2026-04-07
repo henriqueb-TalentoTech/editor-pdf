@@ -24,7 +24,7 @@ body {
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-.btn-secondary:hover { background: #eee; }
+.btn-secondary:hover { background: color-mix(in srgb, var(--border) 80%, var(--text) 20%); }
 
 .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
 .btn-outline:hover { background: var(--primary); color: #fff; }
