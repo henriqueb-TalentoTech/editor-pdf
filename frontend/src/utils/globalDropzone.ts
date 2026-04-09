@@ -11,17 +11,17 @@ let overlay: HTMLElement | null = null
 
 const LABEL_MAP: Record<string, string> = {
   pdf: 'PDF',
-  image: 'PNG, JPG, JPEG',
+  image: 'PNG, JPG, JPEG, WebP, GIF, BMP, AVIF',
 }
 
 const FILE_EXTENSIONS: Record<string, string[]> = {
   pdf: ['.pdf'],
-  image: ['.png', '.jpg', '.jpeg'],
+  image: ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.avif'],
 }
 
 const MIME_PREFIXES: Record<string, string[]> = {
   pdf: ['application/pdf'],
-  image: ['image/png', 'image/jpeg'],
+  image: ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp', 'image/avif'],
 }
 
 function showOverlay(accept: AcceptType) {

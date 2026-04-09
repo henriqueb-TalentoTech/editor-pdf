@@ -3,6 +3,25 @@ import { MultiDropZone, hideDropZone } from '../utils/dropzone'
 import { showToast, downloadBlob } from '../utils/helpers'
 import { setGlobalDropTarget } from '../utils/globalDropzone'
 
+/** Convert any browser-supported image to a PNG ArrayBuffer for pdf-lib */
+async function imageToPng(file: File): Promise<ArrayBuffer | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const c = document.createElement('canvas')
+      c.width = img.naturalWidth
+      c.height = img.naturalHeight
+      c.getContext('2d')!.drawImage(img, 0, 0)
+      c.toBlob((blob) => {
+        if (!blob) { resolve(null); return }
+        blob.arrayBuffer().then(resolve)
+      }, 'image/png')
+    }
+    img.onerror = () => resolve(null)
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export function Img2PdfView(): HTMLElement {
   const container = document.createElement('div')
 
@@ -19,7 +38,9 @@ export function Img2PdfView(): HTMLElement {
   const finishBtn = header.querySelector('.finish-btn-inline') as HTMLButtonElement
   finishBtn.disabled = true
 
-  const dz = MultiDropZone({ accept: '.png,.jpg,.jpeg' })
+  const EXTENSIONS = '.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif'
+
+  const dz = MultiDropZone({ accept: EXTENSIONS })
   container.appendChild(dz)
 
   const pageGrid = document.createElement('div')
@@ -30,7 +51,7 @@ export function Img2PdfView(): HTMLElement {
   // Hidden add input
   const addInput = document.createElement('input')
   addInput.type = 'file'
-  addInput.accept = '.png,.jpg,.jpeg'
+  addInput.accept = EXTENSIONS
   addInput.multiple = true
   addInput.style.display = 'none'
   container.appendChild(addInput)
@@ -57,6 +78,7 @@ export function Img2PdfView(): HTMLElement {
   const confirmBtn = renameSection.querySelector('.confirm-rename') as HTMLButtonElement
 
   let files: File[] = []
+  let blobUrls: string[] = []
 
   dz.addEventListener('files-selected', ((e: Event) => {
     files = (e as CustomEvent).detail.files as File[]
@@ -79,6 +101,12 @@ export function Img2PdfView(): HTMLElement {
 
   function renderPreviews() {
     pageGrid.innerHTML = ''
+
+    // Revoke stale blob URLs from files that were removed
+    for (let i = 0; i < blobUrls.length; i++) {
+      URL.revokeObjectURL(blobUrls[i])
+    }
+    blobUrls = []
 
     if (files.length > 0) {
       hideDropZone(dz)
@@ -111,11 +139,13 @@ export function Img2PdfView(): HTMLElement {
     const card = document.createElement('div')
     card.className = 'page-card'
 
+    const url = URL.createObjectURL(file)
+    blobUrls.push(url)
+
     const thumb = document.createElement('div')
     thumb.className = 'page-thumb'
     const img = document.createElement('img')
-    img.src = URL.createObjectURL(file)
-    img.onload = () => URL.revokeObjectURL(img.src)
+    img.src = url
     thumb.appendChild(img)
     card.appendChild(thumb)
 
@@ -231,13 +261,26 @@ export function Img2PdfView(): HTMLElement {
     try {
       const newDoc = await PDFDocument.create()
       for (const file of files) {
-        const buf = await file.arrayBuffer()
+        let pageBuf: ArrayBuffer
+        let isPngOrJpeg = file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/jpg'
+
+        if (isPngOrJpeg) {
+          pageBuf = await file.arrayBuffer()
+        } else {
+          const pngBuf = await imageToPng(file)
+          if (!pngBuf) continue
+          pageBuf = pngBuf
+        }
+
         let image: any
         if (file.type === 'image/png') {
-          image = await newDoc.embedPng(buf)
+          image = await newDoc.embedPng(pageBuf)
         } else if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
-          image = await newDoc.embedJpg(buf)
-        } else { continue }
+          image = await newDoc.embedJpg(pageBuf)
+        } else {
+          // Converted via canvas, so it's a PNG now
+          image = await newDoc.embedPng(pageBuf)
+        }
         const page = newDoc.addPage([image.width, image.height])
         page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
       }
